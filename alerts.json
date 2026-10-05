@@ -1,0 +1,22 @@
+{
+  "valid_events": 12,
+  "rejected_rows": [],
+  "alerts": [
+    {
+      "rule": "multi_account_failures",
+      "source_ip": "198.51.100.25",
+      "window_start": "2026-10-05T10:00:00+00:00",
+      "detected_at": "2026-10-05T10:02:00+00:00",
+      "distinct_accounts": 5,
+      "failed_attempts": 5,
+      "accounts": [
+        "alice",
+        "bob",
+        "charlie",
+        "diana",
+        "erin"
+      ],
+      "assessment": "requires_investigation"
+    }
+  ]
+}
