@@ -92,4 +92,4 @@ Shared proxies or gateways can produce benign multi-account failures. Distribute
 Authentication analysis, event correlation, input validation, Python automation, structured alert reporting, testing and evidence-based SOC triage.
 
 ## Audit and validation
-The initial eight tests passed before modification. After the audit, all 18 tests passed locally and the sample JSON remained unchanged. See [audit notes](AUDIT.md) for changes, regression evidence, and limitations. Hosted workflow results are available through the badge above; no hosted pass is claimed until confirmed.
+The initial eight tests passed before modification. After the audit, all 18 tests passed locally and the sample JSON remained unchanged. See [audit notes](AUDIT.md) for changes, regression evidence, and limitations. Hosted verification confirmed: all 18 tests passed on both Windows and Linux in [run 39117120851](https://github.com/Banoth281/soc-password-spray-lab/actions/runs/39117120851), testing commit 759fae6136a103cc95b95f67371de5b02e103cff.
