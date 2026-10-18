@@ -10,13 +10,19 @@ from pathlib import Path
 
 def read_events(path):
     events, errors = [], []
+    seen = set()
     with open(path, newline='', encoding='utf-8-sig') as handle:
         reader = csv.DictReader(handle)
         required = {'timestamp', 'account', 'source_ip', 'result'}
         if not required.issubset(reader.fieldnames or []):
             raise ValueError('CSV requires timestamp, account, source_ip, result')
-        for line, row in enumerate(reader, 2):
+        if len(reader.fieldnames) != len(set(reader.fieldnames)):
+            raise ValueError('CSV contains duplicate column names')
+        for row in reader:
+            line = reader.line_num
             try:
+                if None in row or any(row[name] is None for name in required):
+                    raise ValueError('Row has missing or extra fields')
                 stamp = datetime.fromisoformat(row['timestamp'].strip().replace('Z', '+00:00'))
                 if stamp.tzinfo is None:
                     raise ValueError('Timestamp must include a timezone')
@@ -25,7 +31,12 @@ def read_events(path):
                 result = row['result'].strip().lower()
                 if not account or result not in {'failure', 'success'}:
                     raise ValueError('Invalid account or result')
-                events.append({'timestamp': stamp.astimezone(timezone.utc),
+                stamp = stamp.astimezone(timezone.utc)
+                identity = (stamp, account, source, result)
+                if identity in seen:
+                    raise ValueError('Duplicate normalised event excluded')
+                seen.add(identity)
+                events.append({'timestamp': stamp,
                                'account': account, 'source_ip': source, 'result': result})
             except (ValueError, AttributeError, TypeError) as exc:
                 errors.append({'line': line, 'error': str(exc)})
@@ -70,14 +81,20 @@ def main():
     parser.add_argument('--window-minutes', type=int, default=5)
     args = parser.parse_args()
     try:
+        if args.input.resolve() == args.output.resolve():
+            raise ValueError('Output must not overwrite the input CSV')
         events, errors = read_events(args.input)
         report = {'valid_events': len(events), 'rejected_rows': errors,
                   'alerts': detect(events, args.threshold, args.window_minutes)}
     except (ValueError, OSError) as exc:
         parser.error(str(exc))
-    args.output.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+    try:
+        args.output.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+    except OSError as exc:
+        parser.error(str(exc))
     print(f"Analysed {len(events)} events; rejected {len(errors)} rows; generated {len(report['alerts'])} alerts.")
 
 
 if __name__ == '__main__':
     main()
+

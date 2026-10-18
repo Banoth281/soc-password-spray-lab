@@ -1,10 +1,35 @@
 # SOC Password Spray Detection Lab
 
-A standalone SOC portfolio project using Python to identify a single source IP failing authentication against multiple accounts. Uses synthetic data; no login attempts are made.
+[![Python detector tests](https://github.com/Banoth281/soc-password-spray-lab/actions/workflows/python-tests.yml/badge.svg)](https://github.com/Banoth281/soc-password-spray-lab/actions/workflows/python-tests.yml)
 
-## Investigation question
+**Santhosh Banoth | Offline authentication analysis and detection engineering**
 
-Is one source failing authentication against at least five distinct accounts within five minutes? This pattern may be consistent with password spraying, but these logs cannot establish whether the same password was attempted or whether malicious activity occurred.
+Identify one source IP failing authentication against at least five distinct accounts within an inclusive five-minute window. Synthetic records only; the tool makes no login attempts.
+
+## Recruiter overview
+
+| Capability | Evidence |
+|---|---|
+| Multi-account correlation | [Detector](detect_spray.py) counts distinct accounts per source |
+| Boundary and negative testing | [18 tests](test_detect_spray.py) covering detection, validation, and CLI behaviour |
+| Reproducible findings | [Sample JSON](alerts.json) checked against regenerated output by a test |
+| Analyst reasoning | [Investigation](investigation.md) separates evidence, alternative explanations, and proposed actions |
+| Automated validation | [Windows and Linux workflow](.github/workflows/python-tests.yml) |
+
+## Detection workflow
+
+```mermaid
+flowchart TD
+    A["Synthetic CSV records"] --> B["Validate fields and UTC timestamps"]
+    B --> C["Reject malformed and duplicate rows"]
+    B --> D["Sort accepted events"]
+    D --> E["Rolling failures per source IP"]
+    E --> F{"Five distinct accounts?"}
+    F -->|Yes| G["JSON alert for analyst review"]
+    F -->|No| H["No threshold alert"]
+```
+
+The records do not contain attempted passwords. A multi-account failure pattern is consistent with possible password spraying but does not prove that the same password was tried or that an account was compromised.
 
 ## Run
 
@@ -25,7 +50,9 @@ Optional settings:
 python detect_spray.py --threshold 5 --window-minutes 5 --output alerts.json
 ```
 
-Each run replaces the output report. Invalid rows are excluded and reported with CSV line numbers; missing columns stop processing. Timestamps require timezone offsets and are normalised to UTC.
+Each run replaces the output report. The CLI refuses an output path that resolves to the input CSV. Invalid rows are excluded with physical CSV line numbers (the ending line for multiline rows); missing required columns or duplicate headers stop processing. Rows with missing or extra fields are rejected. Timestamps require timezone offsets and are normalised to UTC.
+
+The CSV reader excludes exact normalised duplicates identified by timestamp, account, canonical source IP, and result. These are reported as rejected rows. Without event IDs, genuinely separate events with identical values cannot be distinguished and will be merged. Duplicate removal applies to CSV ingestion; callers of detect() must validate their own records.
 
 ## Sample result
 
@@ -53,7 +80,7 @@ The report is a snapshot when the threshold is crossed. A sixth account fails la
 | `detect_spray.py` | Detector, validation and JSON reporting |
 | `login_events.csv` | Synthetic authentication records |
 | `alerts.json` | Reproducible sample output |
-| `test_detect_spray.py` | Eight behavioural tests |
+| `test_detect_spray.py` | 18 detection, validation, and CLI tests |
 | `investigation.md` | Evidence, alternative explanations and proposed triage |
 
 ## Limitations
@@ -63,3 +90,6 @@ Shared proxies or gateways can produce benign multi-account failures. Distribute
 ## Skills demonstrated
 
 Authentication analysis, event correlation, input validation, Python automation, structured alert reporting, testing and evidence-based SOC triage.
+
+## Audit and validation
+The initial eight tests passed before modification. After the audit, all 18 tests passed locally and the sample JSON remained unchanged. See [audit notes](AUDIT.md) for changes, regression evidence, and limitations. Hosted workflow results are available through the badge above; no hosted pass is claimed until confirmed.
